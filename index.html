@@ -355,6 +355,13 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+  .poster-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: 1;
+  }
   .poster-name {
     font-family: var(--font-display);
     font-weight: 700;
@@ -755,12 +762,12 @@ function createCard(item) {
   const card = document.createElement("article");
   card.className = "poster-item";
   const gnames = genreNames(item.genres);
-  const bgStyle = item.poster
-    ? `background-image:url('${item.poster}')`
-    : `background:${posterGradient(item.title)}`;
-  const nameHtml = item.poster ? "" : `<div class="poster-name">${item.title}</div>`;
+  const posterImg = item.poster
+    ? `<img class="poster-img" src="${item.poster}" alt="${(item.title || "").replace(/"/g, "&quot;")} poster" loading="lazy" onerror="this.remove()">`
+    : "";
   card.innerHTML = `
-    <div class="poster-bg" style="${bgStyle}">${nameHtml}</div>
+    <div class="poster-bg" style="background:${posterGradient(item.title)}"><div class="poster-name">${item.title}</div></div>
+    ${posterImg}
     <span class="poster-badge">${item.type === "movie" ? "Film" : "Series"}</span>
     <div class="info">
       <h3>${item.title}</h3>
