@@ -350,6 +350,9 @@
     position: absolute; inset: 0;
     display: flex; align-items: flex-end;
     padding: 16px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
   .poster-name {
     font-family: var(--font-display);
@@ -554,7 +557,9 @@ const GENRE_NAMES = {
   28:"Action", 12:"Adventure", 16:"Animation", 35:"Comedy", 80:"Crime",
   99:"Documentary", 18:"Drama", 10751:"Family", 14:"Fantasy", 9648:"Mystery",
   10749:"Romance", 878:"Sci-Fi", 53:"Thriller", 10759:"Action & Adventure",
-  10765:"Sci-Fi & Fantasy",
+  10765:"Sci-Fi & Fantasy", 27:"Horror", 36:"History", 37:"Western",
+  10402:"Music", 10752:"War", 10768:"War & Politics", 10762:"Kids",
+  10763:"News", 10764:"Reality", 10766:"Soap", 10767:"Talk", 10770:"TV Movie",
 };
 
 const MOODS = [
@@ -657,28 +662,83 @@ function maybeShowCta() {
 }
 el.showme.addEventListener("click", (e) => { e.stopPropagation(); showResults(); });
 
-/* matching */
-let shownIds = [];
+/* ---------------- TMDb live data ---------------- */
+const TMDB_KEY = "6621d30d1b3228627a6915c46c8f94c6";
+const IMG_BASE = "https://image.tmdb.org/t/p/w500";
+const PROVIDER_REGIONS = ["NL", "US", "GB"];
 
-function matchingPool(exclude) {
-  const skip = exclude || new Set();
-  let pool = CATALOG.filter(item => !state.watched.has(item.id) && !skip.has(item.id));
-  if (state.types.size) pool = pool.filter(item => state.types.has(item.type));
-  if (state.mood) {
-    const wanted = new Set(state.mood.genres);
-    pool = pool.filter(item => item.genres.some(g => wanted.has(g)));
-  }
-  if (state.time && state.time.value > 0) {
-    pool = pool.filter(item => item.runtime <= state.time.value);
-  }
-  return pool;
-}
+let shownIds = [];
+let currentPool = [];
+const providerCache = new Map();
+
+function wid(item) { return item.type + ":" + item.id; }
+
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+async function discover(mediaType) {
+  const p = new URLSearchParams({
+    api_key: TMDB_KEY,
+    sort_by: "popularity.desc",
+    "vote_count.gte": "150",
+    include_adult: "false",
+    page: "1",
+  });
+  if (state.mood) p.set("with_genres", state.mood.genres.join("|"));
+  if (mediaType === "movie" && state.time && state.time.value > 0) {
+    p.set("with_runtime.lte", String(state.time.value));
+  }
+  const res = await fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${p.toString()}`);
+  if (!res.ok) throw new Error("TMDb " + res.status);
+  const data = await res.json();
+  return (data.results || []).map(r => ({
+    id: r.id,
+    type: mediaType,
+    title: mediaType === "movie" ? r.title : r.name,
+    rating: r.vote_average || 0,
+    year: ((mediaType === "movie" ? r.release_date : r.first_air_date) || "").slice(0, 4),
+    overview: r.overview || "No description available.",
+    genres: r.genre_ids || [],
+    poster: r.poster_path ? IMG_BASE + r.poster_path : null,
+    providers: null,
+  }));
+}
+
+async function buildPool() {
+  const types = state.types.size ? [...state.types] : ["movie", "tv"];
+  const lists = await Promise.all(types.map(t => discover(t).catch(() => [])));
+  const seen = new Set();
+  const pool = lists.flat().filter(x => {
+    if (!x.poster) return false;
+    const k = wid(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return shuffle(pool);
+}
+
+async function fetchProviders(item) {
+  const key = wid(item);
+  if (providerCache.has(key)) return providerCache.get(key);
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/${item.type}/${item.id}/watch/providers?api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = data.results || {};
+    let region = null;
+    for (const code of PROVIDER_REGIONS) { if (results[code]) { region = results[code]; break; } }
+    const flat = (region && region.flatrate) || [];
+    const names = flat.slice(0, 4).map(p => p.provider_name);
+    providerCache.set(key, names);
+    return names;
+  } catch {
+    return [];
+  }
 }
 
 /* posters */
@@ -694,37 +754,53 @@ function createCard(item) {
   const card = document.createElement("article");
   card.className = "poster-item";
   const gnames = genreNames(item.genres);
-  const runtimeTxt = item.type === "movie" ? `${item.runtime} MIN` : `~${item.runtime} MIN/EP`;
+  const bgStyle = item.poster
+    ? `background-image:url('${item.poster}')`
+    : `background:${posterGradient(item.title)}`;
+  const nameHtml = item.poster ? "" : `<div class="poster-name">${item.title}</div>`;
   card.innerHTML = `
-    <div class="poster-bg" style="background:${posterGradient(item.title)}">
-      <div class="poster-name">${item.title}</div>
-    </div>
+    <div class="poster-bg" style="${bgStyle}">${nameHtml}</div>
     <span class="poster-badge">${item.type === "movie" ? "Film" : "Series"}</span>
     <div class="info">
       <h3>${item.title}</h3>
       <div class="meta">
-        <span>${item.year}</span><span>★ ${item.rating.toFixed(1)}</span>
-        <span>${runtimeTxt}</span><span>${gnames.join(" · ")}</span>
+        <span>${item.year || "—"}</span><span>★ ${item.rating.toFixed(1)}</span>
+        <span>${gnames.slice(0, 3).join(" · ")}</span>
       </div>
       <p class="overview">${item.overview}</p>
       <span class="stream-label">Stream on</span>
-      <div class="chips">${item.providers.map(p => `<span class="chip">${p}</span>`).join("")}</div>
+      <div class="chips"></div>
       <button class="watched-btn" type="button">Watched it</button>
     </div>`;
   card.querySelector(".watched-btn").addEventListener("click", (e) => {
     e.stopPropagation();
     onWatched(item, card);
   });
+  populateProviders(item, card);
   return card;
 }
 
+async function populateProviders(item, card) {
+  const chips = card.querySelector(".chips");
+  const label = card.querySelector(".stream-label");
+  const list = item.providers || await fetchProviders(item);
+  item.providers = list;
+  if (!card.isConnected) return;
+  if (list.length) {
+    chips.innerHTML = list.map(p => `<span class="chip">${p}</span>`).join("");
+  } else {
+    label.textContent = "Not on major streaming here";
+    chips.innerHTML = "";
+  }
+}
+
 function onWatched(item, card) {
-  state.watched.add(item.id);
+  state.watched.add(wid(item));
   saveWatched();
-  shownIds = shownIds.filter(id => id !== item.id);
-  const replacement = shuffle(matchingPool(new Set(shownIds)))[0];
+  shownIds = shownIds.filter(id => id !== wid(item));
+  const replacement = currentPool.find(x => !state.watched.has(wid(x)) && !shownIds.includes(wid(x)));
   if (replacement) {
-    shownIds.push(replacement.id);
+    shownIds.push(wid(replacement));
     card.replaceWith(createCard(replacement));
   } else {
     card.style.transition = "opacity 0.4s ease, width 0.4s ease";
@@ -733,18 +809,25 @@ function onWatched(item, card) {
   }
 }
 
-function showResults() {
-  const items = shuffle(matchingPool()).slice(0, 5);
-  shownIds = items.map(i => i.id);
+async function showResults() {
+  el.results.innerHTML = `<div class="empty">Finding something to watch…</div>`;
+  scrollToResults();
+  let pool;
+  try {
+    pool = await buildPool();
+  } catch (err) {
+    el.results.innerHTML = `<div class="empty">Couldn't reach the movie database — check your connection and try again.</div>`;
+    return;
+  }
+  currentPool = pool.filter(x => !state.watched.has(wid(x)));
+  const items = currentPool.slice(0, 5);
+  shownIds = items.map(wid);
   el.results.innerHTML = "";
   if (items.length === 0) {
-    el.results.innerHTML = `<div class="empty">Nothing matches those choices — try a different mood or more time.
-      (The live version searches thousands of titles.)</div>`;
-    scrollToResults();
+    el.results.innerHTML = `<div class="empty">Nothing matched those choices — try a different mood, format, or more time.</div>`;
     return;
   }
   items.forEach(item => el.results.appendChild(createCard(item)));
-  scrollToResults();
 }
 
 function scrollToResults() {
