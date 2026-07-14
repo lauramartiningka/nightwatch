@@ -361,7 +361,9 @@
     object-fit: cover;
     display: block;
     z-index: 1;
+    transition: filter 0.45s ease;
   }
+  .poster-item:hover .poster-img { filter: brightness(0.42) saturate(0.95); }
   .poster-name {
     font-family: var(--font-display);
     font-weight: 700;
@@ -386,7 +388,7 @@
 
   .info {
     position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(20,22,26,0.15) 0%, rgba(20,22,26,0.55) 45%, rgba(20,22,26,0.94) 100%);
+    background: linear-gradient(180deg, rgba(8,7,5,0.28) 0%, rgba(8,7,5,0.40) 55%, rgba(8,7,5,0.62) 100%);
     padding: 22px;
     display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
     opacity: 0;
