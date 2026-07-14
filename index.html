@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NightWatch — What to watch tonight</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1 class="logo">🌙 NightWatch</h1>
+      <p class="tagline">Stop scrolling. Find something to watch tonight.</p>
+      <nav class="top-nav">
+        <button id="nav-find" class="nav-btn active" type="button">Find</button>
+        <button id="nav-favorites" class="nav-btn" type="button">
+          Favorites <span id="fav-count" class="badge">0</span>
+        </button>
+        <button id="nav-settings" class="nav-btn" type="button" aria-label="Settings">⚙︎</button>
+      </nav>
+    </header>
+
+    <!-- Setup / API key panel -->
+    <section id="setup-panel" class="panel setup hidden">
+      <h2>One-time setup</h2>
+      <p>
+        NightWatch uses the free public
+        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">TMDb API</a>
+        for movie/TV data and streaming availability. Paste your free API key (v3 auth) to get started.
+        It is stored only in your browser.
+      </p>
+      <div class="field">
+        <label for="api-key-input">TMDb API key</label>
+        <input id="api-key-input" type="text" placeholder="e.g. 8a1b2c3d..." autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="region-select">Your region (for streaming availability)</label>
+        <select id="region-select"></select>
+      </div>
+      <div class="actions">
+        <button id="save-setup" class="btn primary" type="button">Save & start</button>
+        <button id="close-setup" class="btn ghost hidden" type="button">Cancel</button>
+      </div>
+      <p id="setup-error" class="error hidden"></p>
+      <div class="setup-divider"><span>or</span></div>
+      <p class="setup-demo-text">
+        No key yet? Try <strong>Demo mode</strong> with a small set of sample titles —
+        the whole app works (mood, time, genre, Surprise me, favorites), just with
+        placeholder content instead of live data.
+      </p>
+      <div class="actions">
+        <button id="demo-setup" class="btn secondary" type="button">▶ Try the demo (no key)</button>
+      </div>
+    </section>
+
+    <!-- Find / inputs panel -->
+    <section id="find-panel" class="panel">
+      <div id="demo-banner" class="demo-banner hidden">
+        🧪 Demo mode — showing sample titles.
+        <button id="exit-demo" class="link-btn" type="button">Use a real TMDb key instead</button>
+      </div>
+      <form id="find-form" class="controls">
+        <div class="field">
+          <label for="mood-select">Mood</label>
+          <select id="mood-select">
+            <option value="">Any mood</option>
+            <option value="relaxing">😌 Relaxing</option>
+            <option value="exciting">⚡ Exciting</option>
+            <option value="funny">😂 Funny</option>
+            <option value="thoughtful">🤔 Thoughtful</option>
+            <option value="family">👨‍👩‍👧 Family-friendly</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="time-select">I have…</label>
+          <select id="time-select">
+            <option value="">Any amount of time</option>
+            <option value="30">Up to 30 min</option>
+            <option value="60">Up to 1 hour</option>
+            <option value="90">Up to 1.5 hours</option>
+            <option value="120">Up to 2 hours</option>
+            <option value="150">Up to 2.5 hours</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="genre-select">Genre</label>
+          <select id="genre-select">
+            <option value="">Any genre</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="type-select">Type</label>
+          <select id="type-select">
+            <option value="either">Movies or TV</option>
+            <option value="movie">Movies only</option>
+            <option value="tv">TV shows only</option>
+          </select>
+        </div>
+
+        <div class="field actions-field">
+          <button id="find-btn" class="btn primary" type="submit">Get suggestions</button>
+          <button id="surprise-btn" class="btn secondary" type="button">🎲 Surprise me</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Status / results -->
+    <section class="results-area">
+      <div id="status" class="status hidden"></div>
+      <div id="results" class="results-grid"></div>
+      <div id="more-area" class="more-area hidden">
+        <button id="more-btn" class="btn ghost" type="button">Show me more</button>
+      </div>
+    </section>
+
+    <!-- Favorites panel -->
+    <section id="favorites-panel" class="panel hidden">
+      <h2>Your favorites</h2>
+      <div id="favorites-grid" class="results-grid"></div>
+      <p id="favorites-empty" class="empty hidden">
+        No favorites yet. Tap the ♥ on any suggestion to save it here.
+      </p>
+    </section>
+
+    <footer class="footer">
+      <span>Data & availability from
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDb</a>.
+        This product uses the TMDb API but is not endorsed or certified by TMDb.</span>
+      <button id="reset-dismissed" class="link-btn" type="button">Reset dismissed titles</button>
+    </footer>
+  </div>
+
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
