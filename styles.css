@@ -424,6 +424,52 @@ body {
   color: var(--text);
 }
 
+/* About / how to use */
+.about {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.about summary {
+  cursor: pointer;
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  list-style: none;
+  user-select: none;
+}
+.about summary::-webkit-details-marker {
+  display: none;
+}
+.about summary:hover {
+  color: var(--accent-hover);
+}
+.about[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+.about-body {
+  padding: 4px 20px 18px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.about-body ol {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+.about-body li {
+  margin-bottom: 6px;
+}
+.about-body strong {
+  color: var(--text);
+}
+.about-note {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* Misc */
 .hidden {
   display: none !important;
