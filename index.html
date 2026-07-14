@@ -317,18 +317,19 @@
 
   .results {
     display: flex;
+    flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
-    gap: 28px;
+    gap: clamp(12px, 1.6vw, 24px);
     width: 100%;
-    max-width: 1100px;
+    max-width: 1200px;
     min-height: 420px;
   }
 
   .poster-item {
     position: relative;
     flex: 0 0 auto;
-    width: clamp(120px, 14vw, 170px);
+    width: clamp(96px, 12.5vw, 165px);
     aspect-ratio: 2 / 3;
     border-radius: 6px;
     overflow: hidden;
