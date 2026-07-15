@@ -3,23 +3,18 @@
 Stop scrolling. Find something to watch tonight in seconds.
 
 NightWatch is a tiny, single-page web app that suggests movies and TV shows based on
-your **mood**, how much **time** you have, and an optional **genre** — or just hit
-**🎲 Surprise me**. It shows where each title is streaming in your region, and lets you
-save favorites and dismiss things you're not interested in.
+your **mood* and how much **time** you have. It shows where each title is streaming in your region, and lets you
+ dismiss things you've already watched
 
-No accounts, no database, no build step. Everything runs in your browser and your
-preferences are saved locally on your device.
+No accounts, no database, no build step. 
 
 ## What it does
 
 - Pick a mood (relaxing, exciting, funny, thoughtful, family-friendly), a max runtime,
   and/or a genre — then get a short list of suggestions.
-- "Surprise me" gives you a suggestion with zero input.
 - Each result shows poster, year, rating, genres, a synopsis, and **which streaming
   services** carry it in your region.
-- ♥ Save favorites — they live in a dedicated Favorites tab.
-- ✕ Dismiss titles you don't want — they stop showing up (until you reset).
-- "Show me more" re-rolls a fresh batch without re-entering your inputs.
+- ✕ Dismiss titles you've watched already — they stop showing up (until you reset).
 
 ## One-time setup: get a free TMDb API key
 
