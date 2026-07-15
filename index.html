@@ -455,6 +455,31 @@
     border: 1px solid rgba(255,255,255,0.15);
     padding: 5px 10px; border-radius: 999px;
   }
+
+  .info .meta .rt { color: #ff6347; }
+
+  .quote-ticker {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 49;
+    max-width: min(72vw, 620px);
+    text-align: center;
+    font-family: var(--font-body); font-weight: 300; font-style: italic;
+    font-size: clamp(0.72rem, 1.4vw, 0.92rem);
+    line-height: 1.4;
+    color: var(--ink-faint);
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+  }
+  .quote-ticker.show { opacity: 0.85; }
+  .quote-ticker .qt-src {
+    display: block; margin-top: 3px;
+    font-style: normal; font-family: var(--font-mono);
+    font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+  }
+  @media (max-width: 720px) { .quote-ticker { display: none; } }
 </style>
 </head>
 <body>
@@ -505,6 +530,8 @@
   </section>
 
   <div class="proto-tag">nightwatch</div>
+
+  <div class="quote-ticker" id="quote-ticker" aria-live="polite"></div>
 
 <script>
 /* ---------------- Sample catalog (self-contained, no key needed) ---------------- */
@@ -678,11 +705,15 @@ el.showme.addEventListener("click", (e) => { e.stopPropagation(); showResults();
 const TMDB_KEY = "6621d30d1b3228627a6915c46c8f94c6";
 const IMG_BASE = "https://image.tmdb.org/t/p/w500";
 const PROVIDER_REGIONS = ["NL", "US", "GB"];
+// Rotten Tomatoes scores come from OMDb (not TMDb). Get a free key at
+// https://www.omdbapi.com/apikey.aspx and paste it below to enable them.
+const OMDB_KEY = "";
 
 let shownIds = [];
 let currentPool = [];
 const providerCache = new Map();
-const runtimeCache = new Map();
+const movieDetailCache = new Map();
+const rtCache = new Map();
 
 function wid(item) { return item.type + ":" + item.id; }
 
@@ -729,15 +760,39 @@ async function discover(mediaType) {
   return items;
 }
 
-async function fetchRuntime(id) {
-  if (runtimeCache.has(id)) return runtimeCache.get(id);
+async function fetchRuntime(id) { return (await fetchMovieDetail(id)).runtime; }
+
+async function fetchMovieDetail(id) {
+  if (movieDetailCache.has(id)) return movieDetailCache.get(id);
   try {
     const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}`);
     const d = await res.json();
-    const rt = d.runtime || 0;
-    runtimeCache.set(id, rt);
-    return rt;
-  } catch { return 0; }
+    const detail = { runtime: d.runtime || 0, imdb_id: d.imdb_id || null };
+    movieDetailCache.set(id, detail);
+    return detail;
+  } catch { return { runtime: 0, imdb_id: null }; }
+}
+
+async function fetchRottenTomatoes(item) {
+  if (!OMDB_KEY) return null;
+  const key = wid(item);
+  if (rtCache.has(key)) return rtCache.get(key);
+  try {
+    let imdbId = null;
+    if (item.type === "movie") {
+      imdbId = (await fetchMovieDetail(item.id)).imdb_id;
+    } else {
+      const r = await fetch(`https://api.themoviedb.org/3/tv/${item.id}/external_ids?api_key=${TMDB_KEY}`);
+      imdbId = (await r.json()).imdb_id || null;
+    }
+    if (!imdbId) { rtCache.set(key, null); return null; }
+    const o = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
+    const od = await o.json();
+    const rt = (od.Ratings || []).find(x => x.Source === "Rotten Tomatoes");
+    const val = rt ? rt.Value : null;
+    rtCache.set(key, val);
+    return val;
+  } catch { rtCache.set(key, null); return null; }
 }
 
 async function buildPool() {
@@ -796,6 +851,7 @@ function createCard(item) {
       <h3>${item.title}</h3>
       <div class="meta">
         <span>${item.year || "—"}</span><span>★ ${item.rating.toFixed(1)}</span>
+        <span class="rt" hidden></span>
         <span>${gnames.slice(0, 3).join(" · ")}</span>
       </div>
       <p class="overview">${item.overview}</p>
@@ -808,6 +864,7 @@ function createCard(item) {
     onWatched(item, card);
   });
   populateProviders(item, card);
+  populateRatings(item, card);
   return card;
 }
 
@@ -823,6 +880,13 @@ async function populateProviders(item, card) {
     label.textContent = "Not on major streaming here";
     chips.innerHTML = "";
   }
+}
+
+async function populateRatings(item, card) {
+  const val = await fetchRottenTomatoes(item);
+  if (!val || !card.isConnected) return;
+  const rtEl = card.querySelector(".rt");
+  if (rtEl) { rtEl.textContent = "🍅 " + val; rtEl.hidden = false; }
 }
 
 function onWatched(item, card) {
@@ -867,6 +931,48 @@ async function showResults() {
 function scrollToResults() {
   setTimeout(() => document.getElementById("results-wrap").scrollIntoView({ behavior: "smooth", block: "start" }), 60);
 }
+
+/* ---------------- Rotating movie quotes ---------------- */
+const MOVIE_QUOTES = [
+  { q: "May the Force be with you.", src: "Star Wars" },
+  { q: "Here's looking at you, kid.", src: "Casablanca" },
+  { q: "You talking to me?", src: "Taxi Driver" },
+  { q: "I'll be back.", src: "The Terminator" },
+  { q: "Frankly, my dear, I don't give a damn.", src: "Gone with the Wind" },
+  { q: "Say hello to my little friend!", src: "Scarface" },
+  { q: "Life is like a box of chocolates.", src: "Forrest Gump" },
+  { q: "I see dead people.", src: "The Sixth Sense" },
+  { q: "There's no place like home.", src: "The Wizard of Oz" },
+  { q: "Why so serious?", src: "The Dark Knight" },
+  { q: "To infinity and beyond!", src: "Toy Story" },
+  { q: "I'm going to make him an offer he can't refuse.", src: "The Godfather" },
+  { q: "Just keep swimming.", src: "Finding Nemo" },
+  { q: "Roads? Where we're going we don't need roads.", src: "Back to the Future" },
+  { q: "Carpe diem. Seize the day, boys.", src: "Dead Poets Society" },
+];
+
+function initQuoteTicker() {
+  const ticker = document.getElementById("quote-ticker");
+  if (!ticker) return;
+  let order = shuffle([...MOVIE_QUOTES.keys()]);
+  let i = 0;
+  function render() {
+    const { q, src } = MOVIE_QUOTES[order[i]];
+    ticker.innerHTML = `“${q}”<span class="qt-src">${src}</span>`;
+    ticker.classList.add("show");
+  }
+  function cycle() {
+    ticker.classList.remove("show");
+    setTimeout(() => {
+      i = (i + 1) % order.length;
+      if (i === 0) order = shuffle([...MOVIE_QUOTES.keys()]);
+      render();
+    }, 900);
+  }
+  render();
+  setInterval(cycle, 7000);
+}
+initQuoteTicker();
 </script>
 </body>
 </html>
