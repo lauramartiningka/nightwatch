@@ -906,6 +906,7 @@ function onWatched(item, card) {
 
 async function showResults() {
   el.results.innerHTML = `<div class="empty">Finding something to watch…</div>`;
+  if (window.nextQuote) window.nextQuote();
   scrollToResults();
   let pool;
   try {
@@ -961,16 +962,15 @@ function initQuoteTicker() {
     ticker.innerHTML = `“${q}”<span class="qt-src">${src}</span>`;
     ticker.classList.add("show");
   }
-  function cycle() {
+  window.nextQuote = function () {
     ticker.classList.remove("show");
     setTimeout(() => {
       i = (i + 1) % order.length;
       if (i === 0) order = shuffle([...MOVIE_QUOTES.keys()]);
       render();
-    }, 900);
-  }
+    }, 500);
+  };
   render();
-  setInterval(cycle, 7000);
 }
 initQuoteTicker();
 </script>
