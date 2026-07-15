@@ -682,6 +682,7 @@ const PROVIDER_REGIONS = ["NL", "US", "GB"];
 let shownIds = [];
 let currentPool = [];
 const providerCache = new Map();
+const runtimeCache = new Map();
 
 function wid(item) { return item.type + ":" + item.id; }
 
@@ -708,7 +709,7 @@ async function discover(mediaType) {
   const res = await fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${p.toString()}`);
   if (!res.ok) throw new Error("TMDb " + res.status);
   const data = await res.json();
-  return (data.results || []).map(r => ({
+  let items = (data.results || []).map(r => ({
     id: r.id,
     type: mediaType,
     title: mediaType === "movie" ? r.title : r.name,
@@ -719,6 +720,24 @@ async function discover(mediaType) {
     poster: r.poster_path ? IMG_BASE + r.poster_path : null,
     providers: null,
   }));
+  // TMDb's with_runtime filter is unreliable, so verify movie runtimes client-side.
+  if (mediaType === "movie" && state.time && state.time.value > 0) {
+    const limit = state.time.value + 10; // small grace so e.g. 95min fits a 90min budget
+    const checked = await Promise.all(items.map(async it => ({ it, rt: await fetchRuntime(it.id) })));
+    items = checked.filter(x => x.rt > 0 && x.rt <= limit).map(x => x.it);
+  }
+  return items;
+}
+
+async function fetchRuntime(id) {
+  if (runtimeCache.has(id)) return runtimeCache.get(id);
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}`);
+    const d = await res.json();
+    const rt = d.runtime || 0;
+    runtimeCache.set(id, rt);
+    return rt;
+  } catch { return 0; }
 }
 
 async function buildPool() {
@@ -836,7 +855,10 @@ async function showResults() {
   shownIds = items.map(wid);
   el.results.innerHTML = "";
   if (items.length === 0) {
-    el.results.innerHTML = `<div class="empty">Nothing matched those choices — try a different mood, format, or more time.</div>`;
+    const suggestMore = state.time && state.time.value > 0;
+    el.results.innerHTML = `<div class="empty">${suggestMore
+      ? "Nothing worth watching fits in that little time tonight. Why not give yourself a bit longer and settle in?"
+      : "Nothing matched those choices — try a different mood or format."}</div>`;
     return;
   }
   items.forEach(item => el.results.appendChild(createCard(item)));
