@@ -889,11 +889,12 @@ async function populateRatings(item, card) {
   if (rtEl) { rtEl.textContent = "🍅 " + val; rtEl.hidden = false; }
 }
 
-function onWatched(item, card) {
+async function onWatched(item, card) {
   state.watched.add(wid(item));
   saveWatched();
   shownIds = shownIds.filter(id => id !== wid(item));
-  const replacement = currentPool.find(x => !state.watched.has(wid(x)) && !shownIds.includes(wid(x)));
+  const candidates = currentPool.filter(x => !state.watched.has(wid(x)) && !shownIds.includes(wid(x)));
+  const [replacement] = await selectWithStreaming(candidates, 1);
   if (replacement) {
     shownIds.push(wid(replacement));
     card.replaceWith(createCard(replacement));
@@ -916,7 +917,7 @@ async function showResults() {
     return;
   }
   currentPool = pool.filter(x => !state.watched.has(wid(x)));
-  const items = currentPool.slice(0, 5);
+  const items = await selectWithStreaming(currentPool, 5);
   shownIds = items.map(wid);
   el.results.innerHTML = "";
   if (items.length === 0) {
@@ -927,6 +928,22 @@ async function showResults() {
     return;
   }
   items.forEach(item => el.results.appendChild(createCard(item)));
+}
+
+// Prefer titles that are streaming somewhere; allow at most one without.
+async function selectWithStreaming(pool, n) {
+  const withStream = [];
+  const withoutStream = [];
+  for (const item of pool) {
+    if (withStream.length >= n) break;
+    const list = await fetchProviders(item);
+    item.providers = list;
+    if (list.length) withStream.push(item);
+    else if (withoutStream.length < 1) withoutStream.push(item);
+  }
+  let result = withStream.slice(0, n);
+  if (result.length < n) result = result.concat(withoutStream).slice(0, n);
+  return result;
 }
 
 function scrollToResults() {
